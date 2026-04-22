@@ -1,4 +1,3 @@
--- Players before challenges so FK can reference it
 create table games (
   id uuid primary key default gen_random_uuid(),
   code text unique not null,
@@ -34,23 +33,3 @@ create table submissions (
   submitted_at timestamptz not null default now(),
   unique(challenge_id, player_id)
 );
-
--- Enable RLS
-alter table games enable row level security;
-alter table challenges enable row level security;
-alter table players enable row level security;
-alter table submissions enable row level security;
-
--- Read policies: all public (mutations controlled in API routes via host_token)
-create policy "games_select" on games for select using (true);
-create policy "challenges_select" on challenges for select using (true);
-create policy "players_select" on players for select using (true);
-create policy "players_insert" on players for insert with check (true);
-create policy "submissions_select" on submissions for select using (true);
-create policy "submissions_insert" on submissions for insert with check (true);
-create policy "submissions_update" on submissions for update using (true);
-
--- Enable Realtime
-alter publication supabase_realtime add table players;
-alter publication supabase_realtime add table challenges;
-alter publication supabase_realtime add table submissions;
