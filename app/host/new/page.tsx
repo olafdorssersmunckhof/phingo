@@ -54,6 +54,7 @@ export default function NewGamePage() {
     }
 
     localStorage.setItem(`host_token_${data.id}`, data.host_token)
+    localStorage.setItem('host_game_id', data.id)
     router.push(`/host/${data.id}`)
   }
 

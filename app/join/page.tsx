@@ -31,6 +31,7 @@ export default function JoinPage() {
 
     localStorage.setItem('player_id', data.player_id)
     localStorage.setItem('player_name', name)
+    localStorage.setItem('player_game_id', data.game_id)
     router.push(`/play/${data.game_id}`)
   }
 
