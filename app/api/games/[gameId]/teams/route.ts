@@ -6,8 +6,6 @@ export async function GET(
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   const { gameId } = await params
-  const players = await sql`
-    SELECT id, game_id, name, created_at FROM players WHERE game_id = ${gameId} ORDER BY created_at
-  `
-  return NextResponse.json(players)
+  const teams = await sql`SELECT id, name, join_code, created_at FROM teams WHERE game_id = ${gameId} ORDER BY created_at`
+  return NextResponse.json(teams)
 }

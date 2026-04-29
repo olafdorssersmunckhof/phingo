@@ -1,103 +1,149 @@
 'use client'
 
-import { useEffect, useState, use, useCallback } from 'react'
+import { use, useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { Game, Challenge, Player } from '@/lib/types'
+import type { Game, Team, Challenge } from '@/lib/types'
 
-export default function HostDashboard({ params }: { params: Promise<{ gameId: string }> }) {
+export default function HostGamePage({ params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = use(params)
+  const router = useRouter()
   const [game, setGame] = useState<Game | null>(null)
+  const [teams, setTeams] = useState<Team[]>([])
   const [challenges, setChallenges] = useState<Challenge[]>([])
-  const [players, setPlayers] = useState<Player[]>([])
   const [submissionCounts, setSubmissionCounts] = useState<Record<string, number>>({})
-  const [statusLoading, setStatusLoading] = useState(false)
+  const [tab, setTab] = useState<'teams' | 'challenges'>('teams')
+  const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
-  const hostToken = typeof window !== 'undefined' ? localStorage.getItem(`host_token_${gameId}`) : null
-
-  const loadData = useCallback(async () => {
-    const [gRes, cRes, pRes, sRes] = await Promise.all([
+  const fetchData = useCallback(async () => {
+    const [gameRes, teamsRes, challengesRes, countsRes] = await Promise.all([
       fetch(`/api/games/${gameId}`),
+      fetch(`/api/games/${gameId}/teams`),
       fetch(`/api/games/${gameId}/challenges`),
-      fetch(`/api/games/${gameId}/players`),
       fetch(`/api/games/${gameId}/submissions/counts`),
     ])
-    if (gRes.ok) setGame(await gRes.json())
-    if (cRes.ok) setChallenges(await cRes.json())
-    if (pRes.ok) setPlayers(await pRes.json())
-    if (sRes.ok) setSubmissionCounts(await sRes.json())
+    if (gameRes.ok) setGame(await gameRes.json())
+    if (teamsRes.ok) setTeams(await teamsRes.json())
+    if (challengesRes.ok) setChallenges(await challengesRes.json())
+    if (countsRes.ok) setSubmissionCounts(await countsRes.json())
+    setLoading(false)
   }, [gameId])
 
-  useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 4000)
-    return () => clearInterval(interval)
-  }, [loadData])
+  useEffect(() => { fetchData() }, [fetchData])
 
   async function updateStatus(status: string) {
-    if (!hostToken) return
-    setStatusLoading(true)
-    await fetch(`/api/games/${gameId}/status`, {
+    await fetch(`/api/games/${gameId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host_token: hostToken, status }),
+      body: JSON.stringify({ status }),
     })
-    setGame(prev => (prev ? { ...prev, status: status as Game['status'] } : prev))
-    setStatusLoading(false)
+    fetchData()
   }
 
-  if (!game) return <div className="min-h-screen flex items-center justify-center bg-amber-50">Loading...</div>
+  async function deleteGame() {
+    if (!confirm(`Delete "${game?.name}"? This cannot be undone.`)) return
+    setDeleting(true)
+    await fetch(`/api/games/${gameId}`, { method: 'DELETE' })
+    router.push('/host/dashboard')
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code).catch(() => {})
+    setCopiedCode(code)
+    setTimeout(() => setCopiedCode(null), 1500)
+  }
+
+  if (loading) return <main className="min-h-screen flex items-center justify-center bg-amber-50"><p className="text-amber-700">Loading…</p></main>
+  if (!game) return <main className="min-h-screen flex items-center justify-center bg-amber-50"><p className="text-red-600">Game not found</p></main>
+
+  const judgedCount = challenges.filter(c => c.winner_team_id).length
 
   return (
     <main className="min-h-screen p-6 bg-amber-50 max-w-lg mx-auto">
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex items-center justify-between mb-1">
+        <Link href="/host/dashboard" className="text-amber-600 text-sm">← Dashboard</Link>
+        <button onClick={fetchData} className="text-amber-600 text-sm">↻ Refresh</button>
+      </div>
+
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-amber-800">{game.name}</h1>
-        <Link href={`/host/${gameId}/scoreboard`} className="text-amber-600 text-sm font-medium">Scoreboard →</Link>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="font-mono text-amber-600 text-lg tracking-widest">{game.code}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 capitalize">{game.status}</span>
+        </div>
+        <p className="text-sm text-amber-600 mt-1">{judgedCount}/{challenges.length} challenges judged</p>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 mb-4 text-center border border-amber-200">
-        <p className="text-sm text-amber-600 mb-1">Room code</p>
-        <p className="text-5xl font-mono font-bold tracking-widest text-amber-800">{game.code}</p>
-      </div>
-
-      <div className="bg-white rounded-xl p-4 mb-4 border border-amber-200">
+      <div className="flex flex-wrap gap-2 mb-4">
         {game.status === 'lobby' && (
-          <button onClick={() => updateStatus('active')} disabled={statusLoading}
-            className="w-full bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 disabled:opacity-50">
-            Start Game
-          </button>
+          <button onClick={() => updateStatus('active')} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-600 transition-colors">Start Game</button>
         )}
         {game.status === 'active' && (
-          <button onClick={() => updateStatus('closed')} disabled={statusLoading}
-            className="w-full bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 disabled:opacity-50">
-            Close Game
-          </button>
+          <button onClick={() => updateStatus('closed')} className="bg-gray-500 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-600 transition-colors">Close Game</button>
         )}
-        {game.status === 'closed' && <p className="text-center text-gray-500 font-medium">Game closed</p>}
+        <Link href={`/host/${gameId}/edit`} className="border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors">Edit</Link>
+        <Link href={`/host/${gameId}/scoreboard`} className="border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors">Scores</Link>
+        <button onClick={deleteGame} disabled={deleting} className="ml-auto text-red-400 hover:text-red-600 text-sm px-2 disabled:opacity-50">
+          {deleting ? '…' : 'Delete'}
+        </button>
       </div>
 
-      <section className="mb-4">
-        <h2 className="font-semibold text-amber-700 mb-2">Players ({players.length})</h2>
-        <div className="bg-white rounded-xl border border-amber-200 divide-y divide-amber-100">
-          {players.length === 0 && <p className="p-4 text-sm text-gray-400">Waiting for players...</p>}
-          {players.map(p => <div key={p.id} className="px-4 py-2 text-sm">{p.name}</div>)}
-        </div>
-      </section>
+      <div className="flex gap-0 mb-4 border-b border-amber-200">
+        {(['teams', 'challenges'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-semibold capitalize border-b-2 -mb-px transition-colors ${tab === t ? 'border-amber-500 text-amber-800' : 'border-transparent text-amber-500 hover:text-amber-700'}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
-      <section>
-        <h2 className="font-semibold text-amber-700 mb-2">Challenges</h2>
-        <div className="flex flex-col gap-2">
-          {challenges.map(c => (
-            <Link key={c.id} href={`/host/${gameId}/challenges/${c.id}`}
-              className="bg-white rounded-xl border border-amber-200 px-4 py-3 flex justify-between items-center hover:border-amber-400 transition-colors">
-              <span className="font-medium text-sm">{c.title}</span>
-              <div className="flex items-center gap-3 text-sm">
-                <span className="text-gray-400">{submissionCounts[c.id] ?? 0} photos</span>
-                {c.winner_player_id ? <span className="text-green-600 font-medium">Judged ✓</span> : <span className="text-amber-500">→</span>}
+      {tab === 'teams' && (
+        <div className="flex flex-col gap-3">
+          {teams.map(team => (
+            <div key={team.id} className="bg-white rounded-xl border border-amber-200 p-4 flex items-center justify-between">
+              <div>
+                <div className="font-semibold text-amber-900">{team.name}</div>
+                <div className="font-mono text-amber-600 text-sm tracking-widest mt-0.5">{team.join_code}</div>
               </div>
-            </Link>
+              <button
+                onClick={() => copyCode(team.join_code)}
+                className="text-xs text-amber-600 border border-amber-300 rounded-lg px-3 py-1 hover:bg-amber-50 transition-colors"
+              >
+                {copiedCode === team.join_code ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
           ))}
         </div>
-      </section>
+      )}
+
+      {tab === 'challenges' && (
+        <div className="flex flex-col gap-3">
+          {challenges.map(c => (
+            <button
+              key={c.id}
+              onClick={() => router.push(`/host/${gameId}/challenges/${c.id}`)}
+              className="bg-white rounded-xl border border-amber-200 p-4 text-left hover:border-amber-400 transition-colors"
+            >
+              <div className="font-semibold text-amber-900">{c.title}</div>
+              <div className="flex items-center gap-3 mt-1 text-sm text-amber-600">
+                <span>{submissionCounts[c.id] ?? 0}/{teams.length} submitted</span>
+                {c.winner_team_id && (
+                  <span className="text-green-600 font-medium">
+                    Winner: {teams.find(t => t.id === c.winner_team_id)?.name ?? '—'}
+                  </span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <Link href="/" className="block mt-8 text-center text-amber-600 text-sm">← Home</Link>
     </main>
   )
 }

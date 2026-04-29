@@ -5,13 +5,13 @@ import { uploadFiles } from '@/lib/uploadthing'
 
 interface PhotoUploadProps {
   challengeId: string
-  playerId: string
+  teamId: string
   existingUrl?: string | null
   disabled?: boolean
   onUploaded: (url: string) => void
 }
 
-export function PhotoUpload({ challengeId, playerId, existingUrl, disabled, onUploaded }: PhotoUploadProps) {
+export function PhotoUpload({ challengeId, teamId, existingUrl, disabled, onUploaded }: PhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(existingUrl ?? null)
   const [uploading, setUploading] = useState(false)

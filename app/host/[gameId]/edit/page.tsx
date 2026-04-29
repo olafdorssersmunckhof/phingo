@@ -1,59 +1,77 @@
 'use client'
 
-import { useState } from 'react'
+import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import type { Team, Challenge } from '@/lib/types'
 
 interface ChallengeInput { title: string; description: string }
-interface TeamInput { name: string }
 
-export default function NewGamePage() {
+export default function EditGamePage({ params }: { params: Promise<{ gameId: string }> }) {
+  const { gameId } = use(params)
   const router = useRouter()
   const [gameName, setGameName] = useState('')
-  const [challenges, setChallenges] = useState<ChallengeInput[]>([{ title: '', description: '' }])
-  const [teams, setTeams] = useState<TeamInput[]>([{ name: '' }, { name: '' }])
+  const [challenges, setChallenges] = useState<ChallengeInput[]>([])
+  const [teamNames, setTeamNames] = useState<{ id: string; name: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const [gameRes, challengesRes, teamsRes] = await Promise.all([
+        fetch(`/api/games/${gameId}`),
+        fetch(`/api/games/${gameId}/challenges`),
+        fetch(`/api/games/${gameId}/teams`),
+      ])
+      if (gameRes.ok) { const g = await gameRes.json(); setGameName(g.name) }
+      if (challengesRes.ok) {
+        const cs: Challenge[] = await challengesRes.json()
+        setChallenges(cs.map(c => ({ title: c.title, description: c.description ?? '' })))
+      }
+      if (teamsRes.ok) {
+        const ts: Team[] = await teamsRes.json()
+        setTeamNames(ts.map(t => ({ id: t.id, name: t.name })))
+      }
+      setLoading(false)
+    }
+    load()
+  }, [gameId])
 
   function addChallenge() { setChallenges(prev => [...prev, { title: '', description: '' }]) }
   function removeChallenge(i: number) { setChallenges(prev => prev.filter((_, j) => j !== i)) }
   function updateChallenge(i: number, field: keyof ChallengeInput, value: string) {
     setChallenges(prev => prev.map((c, j) => j === i ? { ...c, [field]: value } : c))
   }
-
-  function addTeam() { setTeams(prev => [...prev, { name: '' }]) }
-  function removeTeam(i: number) { setTeams(prev => prev.filter((_, j) => j !== i)) }
-  function updateTeam(i: number, value: string) {
-    setTeams(prev => prev.map((t, j) => j === i ? { name: value } : t))
+  function updateTeamName(i: number, value: string) {
+    setTeamNames(prev => prev.map((t, j) => j === i ? { ...t, name: value } : t))
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     const validChallenges = challenges.filter(c => c.title.trim())
-    const validTeams = teams.filter(t => t.name.trim())
-    if (validChallenges.length === 0) { setError('Add at least one challenge'); return }
-    if (validTeams.length === 0) { setError('Add at least one team'); return }
-
-    setLoading(true)
-    const res = await fetch('/api/games', {
-      method: 'POST',
+    if (validChallenges.length === 0) { setError('At least one challenge required'); return }
+    setSaving(true)
+    const res = await fetch(`/api/games/${gameId}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: gameName, challenges: validChallenges, teams: validTeams }),
+      body: JSON.stringify({ name: gameName, challenges: validChallenges, teamNames }),
     })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error ?? 'Something went wrong'); return }
-    router.push(`/host/${data.id}`)
+    setSaving(false)
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to save'); return }
+    router.push(`/host/${gameId}`)
   }
+
+  if (loading) return <main className="min-h-screen flex items-center justify-center bg-amber-50"><p className="text-amber-700">Loading…</p></main>
 
   return (
     <main className="min-h-screen p-6 bg-amber-50 max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/host/dashboard" className="text-amber-600 text-sm">← Dashboard</Link>
-        <h1 className="text-2xl font-bold text-amber-800">New Game</h1>
+        <Link href={`/host/${gameId}`} className="text-amber-600 text-sm">← Back</Link>
+        <h1 className="text-2xl font-bold text-amber-800">Edit Game</h1>
       </div>
-      <form onSubmit={handleCreate} className="flex flex-col gap-6">
+      <form onSubmit={handleSave} className="flex flex-col gap-6">
         <div>
           <label className="block text-sm font-medium text-amber-700 mb-1">Game name</label>
           <input
@@ -61,35 +79,29 @@ export default function NewGamePage() {
             value={gameName}
             onChange={e => setGameName(e.target.value)}
             className="w-full border-2 border-amber-300 rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500"
-            placeholder="e.g. Team Outing 2026"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-amber-700 mb-2">Teams</label>
+          <label className="block text-sm font-medium text-amber-700 mb-2">Team names <span className="font-normal text-amber-500">(join codes stay the same)</span></label>
           <div className="flex flex-col gap-2">
-            {teams.map((t, i) => (
-              <div key={i} className="flex gap-2 items-center">
+            {teamNames.map((t, i) => (
+              <div key={t.id} className="flex gap-2 items-center">
                 <span className="text-amber-500 font-bold text-sm w-5">{i + 1}</span>
                 <input
                   type="text"
                   value={t.name}
-                  onChange={e => updateTeam(i, e.target.value)}
-                  placeholder={`Team ${i + 1} name`}
+                  onChange={e => updateTeamName(i, e.target.value)}
                   className="flex-1 border-2 border-amber-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
                 />
-                {teams.length > 1 && (
-                  <button type="button" onClick={() => removeTeam(i)} className="text-red-400 hover:text-red-600 text-sm px-2">✕</button>
-                )}
               </div>
             ))}
           </div>
-          <button type="button" onClick={addTeam} className="mt-2 text-amber-600 text-sm font-medium hover:text-amber-800">+ Add team</button>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-amber-700 mb-2">Challenges</label>
+          <label className="block text-sm font-medium text-amber-700 mb-2">Challenges <span className="font-normal text-amber-500">(replaces existing list)</span></label>
           <div className="flex flex-col gap-3">
             {challenges.map((c, i) => (
               <div key={i} className="flex flex-col gap-1 bg-white p-3 rounded-xl border border-amber-200">
@@ -122,10 +134,10 @@ export default function NewGamePage() {
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <button
           type="submit"
-          disabled={loading}
+          disabled={saving}
           className="bg-amber-500 text-white py-3 rounded-xl font-semibold text-lg hover:bg-amber-600 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Creating…' : 'Create Game'}
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
       </form>
     </main>
