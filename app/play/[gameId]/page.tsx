@@ -4,6 +4,8 @@ import { useState, use, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import type { Game, Challenge, Team } from '@/lib/types'
 
+const btn = 'border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors'
+
 export default function PlayerGamePage({ params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = use(params)
   const [game, setGame] = useState<Game | null>(null)
@@ -38,9 +40,9 @@ export default function PlayerGamePage({ params }: { params: Promise<{ gameId: s
   function challengeStatus(c: Challenge): { label: string; color: string } {
     if (c.winner_team_id) {
       const winner = teams.find(t => t.id === c.winner_team_id)
-      return { label: `Winner: ${winner?.name ?? '—'}`, color: 'text-green-600' }
+      return { label: `Winner: ${winner?.name ?? '—'}`, color: 'text-green-600 font-semibold' }
     }
-    if (submittedIds.has(c.id)) return { label: 'Submitted', color: 'text-amber-500' }
+    if (submittedIds.has(c.id)) return { label: 'Submitted ✓', color: 'text-amber-600' }
     return { label: 'Not submitted', color: 'text-gray-400' }
   }
 
@@ -51,15 +53,17 @@ export default function PlayerGamePage({ params }: { params: Promise<{ gameId: s
     <main className="min-h-screen p-6 bg-amber-50 max-w-lg mx-auto">
       <div className="flex justify-between items-center mb-1">
         <h1 className="text-2xl font-bold text-amber-800">{game.name}</h1>
-        <button onClick={fetchData} className="text-amber-600 text-sm">↻ Refresh</button>
       </div>
-      {teamName && <p className="text-amber-600 text-sm mb-4">Team: {teamName}</p>}
+      {teamName && <p className="text-amber-600 text-sm mb-4">Team: <span className="font-semibold">{teamName}</span></p>}
 
-      <div className="flex gap-3 mb-4">
-        <Link href={`/play/${gameId}/scoreboard`} className="text-amber-600 text-sm font-medium">Scoreboard →</Link>
+      <div className="flex gap-2 mb-5">
+        <button onClick={fetchData} className={btn}>↻ Refresh</button>
+        <Link href={`/play/${gameId}/scoreboard`} className={btn}>Scoreboard</Link>
+        <Link href="/?left=1" className="ml-auto border-2 border-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">← Home</Link>
       </div>
 
       <div className="flex flex-col gap-2">
+        {challenges.length === 0 && <p className="text-gray-400 text-sm text-center py-8">No challenges yet — wait for the host to start the game</p>}
         {challenges.map(c => {
           const status = challengeStatus(c)
           return (
@@ -69,13 +73,11 @@ export default function PlayerGamePage({ params }: { params: Promise<{ gameId: s
               className="bg-white rounded-xl border border-amber-200 px-4 py-3 flex justify-between items-center hover:border-amber-400 transition-colors"
             >
               <span className="font-medium text-sm">{c.title}</span>
-              <span className={`text-xs font-medium ${status.color}`}>{status.label}</span>
+              <span className={`text-xs ${status.color}`}>{status.label}</span>
             </Link>
           )
         })}
       </div>
-
-      <Link href="/" className="block mt-8 text-center text-amber-600 text-sm">← Home</Link>
     </main>
   )
 }

@@ -14,6 +14,8 @@ interface SubmissionRow {
   team_name?: string
 }
 
+const btn = 'border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors'
+
 export default function PlayerChallengePage({ params }: { params: Promise<{ gameId: string; challengeId: string }> }) {
   const { gameId, challengeId } = use(params)
   const router = useRouter()
@@ -64,6 +66,7 @@ export default function PlayerChallengePage({ params }: { params: Promise<{ game
       body: JSON.stringify({ challenge_id: challengeId, team_id: teamId, photo_url: url }),
     })
     setMySubmission({ challenge_id: challengeId, team_id: teamId, photo_url: url })
+    fetchData()
   }
 
   if (loading) return <main className="min-h-screen flex items-center justify-center bg-amber-50"><p className="text-amber-700">Loading…</p></main>
@@ -74,25 +77,31 @@ export default function PlayerChallengePage({ params }: { params: Promise<{ game
 
   return (
     <main className="min-h-screen p-6 bg-amber-50 max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => router.back()} className="text-amber-600 text-sm">← Back</button>
-        <button onClick={fetchData} className="text-amber-600 text-sm">↻ Refresh</button>
+      <div className="flex items-center gap-2 mb-5">
+        <button onClick={() => router.back()} className={btn}>← Back</button>
+        <button onClick={fetchData} className={btn}>↻ Refresh</button>
+        <Link href="/?left=1" className="ml-auto border-2 border-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">← Home</Link>
       </div>
+
       <h1 className="text-xl font-bold text-amber-800 mb-1">{challenge.title}</h1>
       {challenge.description && <p className="text-sm text-gray-500 mb-4">{challenge.description}</p>}
 
       {isJudged ? (
         <div className="mb-6">
-          <p className="text-green-600 font-semibold mb-3">Winner: {winnerTeam?.name ?? '—'}</p>
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4">
+            <p className="text-green-700 font-semibold">Winner: {winnerTeam?.name ?? '—'}</p>
+          </div>
           {winnerSubmission && (
-            <div className="relative w-full max-w-xs aspect-square rounded-xl overflow-hidden">
+            <div className="relative w-full aspect-square rounded-xl overflow-hidden">
               <Image src={winnerSubmission.photo_url} alt="Winning photo" fill className="object-cover" unoptimized />
             </div>
           )}
         </div>
       ) : (
         <div className="mb-6">
-          <p className="text-sm text-amber-600 mb-4">Upload your team's photo for this challenge</p>
+          <p className="text-sm text-amber-600 mb-4">
+            {mySubmission ? 'Your team submitted a photo — you can replace it.' : "Upload your team's photo for this challenge."}
+          </p>
           {teamId ? (
             <PhotoUpload
               challengeId={challengeId}
@@ -102,12 +111,10 @@ export default function PlayerChallengePage({ params }: { params: Promise<{ game
               onUploaded={handleUploaded}
             />
           ) : (
-            <p className="text-red-500 text-sm">Not joined as a team — go back to the home screen and enter your team code.</p>
+            <p className="text-red-500 text-sm">Not joined as a team — go home and enter your team code.</p>
           )}
         </div>
       )}
-
-      <Link href="/" className="block mt-8 text-center text-amber-600 text-sm">← Home</Link>
     </main>
   )
 }

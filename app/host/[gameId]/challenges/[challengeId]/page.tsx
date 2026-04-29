@@ -52,9 +52,9 @@ export default function HostChallengePage({ params }: { params: Promise<{ gameId
 
   return (
     <main className="min-h-screen p-6 bg-amber-50 max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => router.back()} className="text-amber-600 text-sm">← Back</button>
-        <button onClick={fetchData} className="text-amber-600 text-sm">↻ Refresh</button>
+      <div className="flex items-center gap-2 mb-5">
+        <button onClick={() => router.back()} className="border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors">← Back</button>
+        <button onClick={fetchData} className="border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors">↻ Refresh</button>
       </div>
       <h1 className="text-xl font-bold text-amber-800 mb-1">{challenge.title}</h1>
       {challenge.description && <p className="text-sm text-gray-500 mb-4">{challenge.description}</p>}

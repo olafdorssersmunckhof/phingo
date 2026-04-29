@@ -62,9 +62,9 @@ export default function HostGamePage({ params }: { params: Promise<{ gameId: str
 
   return (
     <main className="min-h-screen p-6 bg-amber-50 max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-1">
-        <Link href="/host/dashboard" className="text-amber-600 text-sm">← Dashboard</Link>
-        <button onClick={fetchData} className="text-amber-600 text-sm">↻ Refresh</button>
+      <div className="flex items-center gap-2 mb-3">
+        <Link href="/host/dashboard" className="border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors">← Dashboard</Link>
+        <button onClick={fetchData} className="border-2 border-amber-300 text-amber-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors">↻ Refresh</button>
       </div>
 
       <div className="mb-4">
@@ -143,7 +143,6 @@ export default function HostGamePage({ params }: { params: Promise<{ gameId: str
         </div>
       )}
 
-      <Link href="/" className="block mt-8 text-center text-amber-600 text-sm">← Home</Link>
     </main>
   )
 }
