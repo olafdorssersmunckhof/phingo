@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   for (const t of teams as { name: string }[]) {
     const joinCode = await uniqueJoinCode()
     const [team] = await sql`INSERT INTO teams (game_id, name, join_code) VALUES (${game.id}, ${t.name}, ${joinCode}) RETURNING id, name, join_code`
-    createdTeams.push(team)
+    createdTeams.push(team as { id: string; name: string; join_code: string })
   }
 
   return NextResponse.json({ id: game.id, code: game.code, teams: createdTeams })
